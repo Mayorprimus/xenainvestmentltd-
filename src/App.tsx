@@ -203,6 +203,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Flutterwave sends payers back to `/?flutterwave_status=success` in the
+  // checkout popup. Signal the opener tab to auto-verify the deposit, then close.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('flutterwave_status') !== 'success') return;
+    try { localStorage.setItem('xena_fw_flash', String(Date.now())); } catch {}
+    try { window.close(); } catch {}
+  }, []);
+
   // Realtime: any public/admin table change re-syncs shared + my state so every
   // admin action (price, approval, payout, withdrawal decision…) lands live.
   useEffect(() => {

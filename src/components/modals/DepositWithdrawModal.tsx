@@ -203,6 +203,21 @@ export const DepositWithdrawModal: React.FC<DepositWithdrawModalProps> = ({
     showSuccess(`+${xena.toLocaleString()} XENA deposited from ${fmtNgn(ngn)}!`);
   };
 
+  // Auto-verify: when the Flutterwave checkout popup returns to
+  // `/?flutterwave_status=success`, it sets a localStorage flash key that
+  // other tabs (this one) pick up via the `storage` event — no opener needed.
+  useEffect(() => {
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === 'xena_fw_flash' && waitingPayment && txRef && !isSubmitting) {
+        try { localStorage.removeItem('xena_fw_flash'); } catch {}
+        handleVerifyFlutterwave();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingPayment, txRef, isSubmitting]);
+
   // ──────────── CRYPTO DEPOSIT (NOWPayments) ────────────
   const handleCryptoDeposit = async (e: React.FormEvent) => {
     e.preventDefault();

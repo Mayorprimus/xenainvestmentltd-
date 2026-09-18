@@ -1296,6 +1296,14 @@ const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
 const NOWPAYMENTS_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET || '';
 const APP_ORIGIN = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/+$/, '');
 
+// Prefer the caller's own origin (from the browser via the Vite proxy in dev,
+// or the app's public domain in production) so payment redirects always land
+// on the correct frontend, regardless of how the server is reached.
+function frontendOrigin(req) {
+  const o = String(req.headers.origin || req.headers.referer || '').replace(/\/+$/, '');
+  return o || APP_ORIGIN;
+}
+
 function rateNgn() {
   return Number(db?.xenaNgnRate) > 0 ? Number(db.xenaNgnRate) : XENA_NGN_RATE;
 }
@@ -1394,7 +1402,7 @@ app.post('/api/flutterwave/initialize', async (req, res) => {
     tx_ref: txRef,
     amount,
     currency: 'NGN',
-    redirect_url: `${APP_ORIGIN}/wallet?flutterwave_status=success`,
+    redirect_url: `${frontendOrigin(req)}/wallet?flutterwave_status=success`,
     payment_options: 'banktransfer,card,ussd',
     customer: { email, name: acc.name || 'XENA User' },
     customizations: { title: 'XENA Deposit', description: `Deposit ₦${amount.toLocaleString()} via Flutterwave`, logo: '' },
@@ -1592,8 +1600,8 @@ app.post('/api/crypto/create', async (req, res) => {
         order_id: `xena-${String(email).replace(/[^a-z0-9@._-]/gi, '')}-${Date.now()}`,
         order_description: `XENA deposit via ${coinKey.toUpperCase()}`,
         ipn_callback_url: `${APP_ORIGIN}/api/crypto/ipn`,
-        success_url: `${APP_ORIGIN}/wallet`,
-        cancel_url: `${APP_ORIGIN}/wallet`,
+        success_url: `${frontendOrigin(req)}/wallet`,
+        cancel_url: `${frontendOrigin(req)}/wallet`,
       }),
     });
     invoice = await inv.json();
