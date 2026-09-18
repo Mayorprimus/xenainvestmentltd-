@@ -8,11 +8,15 @@ import { makePool, bootstrapDatabase, loadDocument } from '../shared/bootstrap.j
 async function main() {
   const pool = makePool();
   if (!pool) {
-    console.error(
-      'DATABASE_URL is not set. Point it at your PostgreSQL database ' +
-        '(Railway provides one in its PostgreSQL service dashboard) and try again.'
+    // No DATABASE_URL configured yet — the server already provides a JSON-file
+    // fallback (data/db.json) for local or temporary testing. Skip gracefully
+    // so container start commands (`init-db && server`) don't block startup.
+    console.log(
+      'DATABASE_URL is not set — skipping PostgreSQL setup. ' +
+        'Server will use the JSON file fallback (data/db.json). ' +
+        'Add DATABASE_URL (Railway PostgreSQL service) and rerun to persist in Postgres.'
     );
-    process.exit(1);
+    return;
   }
   try {
     const { seeded } = await bootstrapDatabase(pool);

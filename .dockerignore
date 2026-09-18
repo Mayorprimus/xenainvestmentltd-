@@ -1,0 +1,10 @@
+.git
+node_modules
+dist
+data
+.env
+.env.*
+!*.example
+*.log
+generated-secrets.txt
+.gitignore

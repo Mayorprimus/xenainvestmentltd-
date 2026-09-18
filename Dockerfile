@@ -21,4 +21,4 @@ COPY --from=build /app/shared ./shared
 COPY --from=build /app/scripts ./scripts
 
 EXPOSE 3000
-CMD node scripts/init-db.js && node server.js
+CMD node server.js

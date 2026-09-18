@@ -128,6 +128,17 @@ function saveDb() {
 }
 
 function loadFileDb() {
+  const parsed = readDbFile();
+  // Merge over the canonical seed so new document keys are always present.
+  return {
+    ...structuredClone(BASE_STATE),
+    ...(parsed || {}),
+    accounts: Array.isArray(parsed?.accounts) ? parsed.accounts : [],
+    tokens: parsed?.tokens && typeof parsed.tokens === 'object' ? parsed.tokens : {},
+  };
+}
+
+function readDbFile() {
   let parsed = null;
   try {
     if (fs.existsSync(DB_FILE)) {
@@ -138,13 +149,7 @@ function loadFileDb() {
   } catch (err) {
     console.error('Failed to read data/db.json, re-seeding.', err);
   }
-  // Merge over the canonical seed so new document keys are always present.
-  return {
-    ...structuredClone(BASE_STATE),
-    ...(parsed || {}),
-    accounts: Array.isArray(parsed?.accounts) ? parsed.accounts : [],
-    tokens: parsed?.tokens && typeof parsed.tokens === 'object' ? parsed.tokens : {},
-  };
+  return parsed;
 }
 
 async function initStorage() {
@@ -152,16 +157,20 @@ async function initStorage() {
   if (pool) {
     try {
       await bootstrapDatabase(pool);
-      const loaded = await loadDocument(pool);
+      let loaded = await loadDocument(pool);
+      if (!loaded) {
+        // First Postgres boot after file-storage tests: carry the JSON-store
+        // data over so nothing is lost when the user adds a database later.
+        const fileDoc = readDbFile();
+        if (fileDoc) {
+          await saveDocument(pool, fileDoc);
+          loaded = fileDoc;
+          console.log('[xena] Storage: migrated data/db.json into PostgreSQL.');
+        }
+      }
       if (loaded) {
         db = loaded;
         console.log('[xena] Storage: PostgreSQL document store ready.');
-        return;
-      }
-      const seededAgain = await loadDocument(pool);
-      if (seededAgain) {
-        db = seededAgain;
-        console.log('[xena] Storage: PostgreSQL seeded on startup.');
         return;
       }
       throw new Error('kv_store returned no state after bootstrap');
