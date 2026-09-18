@@ -1,0 +1,6 @@
+{
+  "name": "XENA Exchange",
+  "description": "Modern, premium fintech cryptocurrency exchange for XENA tokens featuring clean white layouts, purple gradients, portfolio tracking, P2P marketplace, and yield investments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
