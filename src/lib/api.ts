@@ -68,10 +68,12 @@ async function call<T = any>(
     const res = await fetch(path, init);
     let data: any = null;
     try { data = await res.json(); } catch { /* non-JSON response */ }
-    if (!data) return { ok: res.ok };
-    return data as T;
+    if (!data) return { ok: false, error: 'Unexpected response.', _status: res.status };
+    return { ...data, _status: res.status } as T;
   } catch {
-    return { ok: false, error: 'Network error. Please try again.' };
+    // fetch never completed (server unreachable/restarting, offline) —
+    // distinct from a real rejection so callers can avoid destructive actions.
+    return { ok: false, error: 'Network error. Please try again.', networkError: true };
   }
 }
 
@@ -151,9 +153,10 @@ export async function logout(): Promise<void> {
 }
 
 // ---------- Session state ----------
-export async function getMyState(): Promise<{ profile?: any; investments?: any[]; p2pTrades?: any[]; payments?: any[]; withdrawals?: any[] } | null> {
+export async function getMyState(): Promise<{ profile?: any; investments?: any[]; p2pTrades?: any[]; payments?: any[]; withdrawals?: any[]; networkError?: boolean } | null> {
   try {
     const data = await call<any>('/api/me', {});
+    if (data?.networkError) return { networkError: true };
     if (!data?.ok) return null;
     return {
       profile: data.profile ? { ...data.profile } : undefined,

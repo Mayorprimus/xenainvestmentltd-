@@ -57,6 +57,7 @@ import { AdminPanel } from './pages/AdminPanel';
 
 // Modals
 import { DepositWithdrawModal } from './components/modals/DepositWithdrawModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BuySellModal } from './components/modals/BuySellModal';
 import { SendReceiveModal } from './components/modals/SendReceiveModal';
 import { P2PTradeModal } from './components/modals/P2PTradeModal';
@@ -177,6 +178,7 @@ export default function App() {
           const me = await getMyState();
           if (me?.profile) {
             applyAccount(mapProfileToAccount(me.profile, me.investments || []));
+            try { sessionStorage.setItem('xena_profile_cache', JSON.stringify(me.profile)); } catch {}
             setAuthed(true);
             if (me.profile.role === 'admin') {
               setUser((prev) => ({ ...prev, role: 'admin' }));
@@ -184,6 +186,19 @@ export default function App() {
             } else {
               handleNavSelect('home');
             }
+          } else if (me?.networkError) {
+            // Server unreachable at boot (deploy restart / offline). Keep the
+            // session instead of force-logging the user out — a later refresh
+            // recovers the real state.
+            try {
+              const cached = sessionStorage.getItem('xena_profile_cache');
+              if (cached) {
+                const profile = JSON.parse(cached);
+                applyAccount(mapProfileToAccount(profile, []));
+              }
+            } catch {}
+            setAuthed(true);
+            handleNavSelect('home');
           } else {
             clearAuthToken();
             setAuthed(false);
@@ -629,7 +644,7 @@ verifiedAccountsCount: user.verifiedAccountsCount,
     setTransactions((prev) => [newTx, ...prev]);
   };
 
-  const handleQuickAction = (action: 'buy' | 'sell' | 'send' | 'receive' | 'p2p' | 'invest') => {
+  const handleQuickAction = (action: 'buy' | 'sell' | 'send' | 'receive' | 'p2p' | 'invest' | 'deposit' | 'withdraw') => {
     switch (action) {
       case 'buy':
         setBuySellMode('buy');
@@ -638,6 +653,12 @@ verifiedAccountsCount: user.verifiedAccountsCount,
       case 'sell':
         setBuySellMode('sell');
         setBuySellOpen(true);
+        break;
+      case 'deposit':
+        handleOpenDeposit();
+        break;
+      case 'withdraw':
+        handleOpenWithdraw();
         break;
       case 'send':
         setSendReceiveMode('send');
@@ -854,6 +875,7 @@ verifiedAccountsCount: user.verifiedAccountsCount,
     }
     if (result.account) {
       applyAccount(result.account);
+      try { sessionStorage.setItem('xena_profile_cache', JSON.stringify(result.account)); } catch {}
       handleNavSelect('home');
       return { ok: true };
     }
@@ -895,6 +917,7 @@ verifiedAccountsCount: user.verifiedAccountsCount,
         walletAddresses: [],
       } as Account);
     applyAccount(account);
+    try { sessionStorage.setItem('xena_profile_cache', JSON.stringify(account)); } catch {}
     setAuthed(true);
     setWelcomeOpen(true);
     return { ok: true };
@@ -1177,6 +1200,7 @@ verifiedAccountsCount: user.verifiedAccountsCount,
   };
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-gradient-to-b from-white via-[#FAF7FF] to-[#F3EFFF] text-[#171717] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] pb-20 md:pb-0">
       {/* Top Header Navigation */}
       <Header
@@ -1297,5 +1321,6 @@ verifiedAccountsCount: user.verifiedAccountsCount,
         }}
       />
     </div>
+    </ErrorBoundary>
   );
 }
